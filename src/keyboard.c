@@ -1690,11 +1690,10 @@ static void xkb_tweak_keyboard(rfbBool down, rfbKeySym keysym,
 	 */
 	for (kc = kc_min; kc <= kc_max; kc++) {
 	    for (grp = 0; grp < grp_max+1; grp++) {
-		/* A key from another layout can produce a different character here. */
-		if (grp != kbstate.group) {
-			continue;
-		}
 		for (lvl = 0; lvl < lvl_max+1; lvl++) {
+			unsigned int mods;
+			KeySym actual;
+
 			if (keysym != xkbkeysyms[kc][grp][lvl]) {
 				continue;
 			}
@@ -1719,6 +1718,12 @@ static void xkb_tweak_keyboard(rfbBool down, rfbKeySym keysym,
 
 			/* save it if state is OK and not told to skip */
 			if (state == (unsigned int) -1) {
+				continue;
+			}
+			/* Let XKB apply this key's wrap/clamp/redirect policy. */
+			if (! XkbLookupKeySym(dpy, kc,
+			    XkbBuildCoreState(state, kbstate.group), &mods,
+			    &actual) || actual != keysym) {
 				continue;
 			}
 			if (skipkeycode[kc] && debug_keyboard) {
