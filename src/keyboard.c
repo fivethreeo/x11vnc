@@ -1459,8 +1459,10 @@ xkbmodifiers[]    For the KeySym bound to this (keycode,group,level) store
 			 * first one found.
 			 */
 			state = 0;
+			/* Modifier bits alone select group zero, not the group being scanned. */
 			while(state < 256) {
-				if (XkbLookupKeySym(dpy, kc, state, &mods,
+				if (XkbLookupKeySym(dpy, kc,
+				    XkbBuildCoreState(state, grp), &mods,
 				    &ks2)) {
 
 					/* save these for workaround below */
@@ -1671,6 +1673,14 @@ static void xkb_tweak_keyboard(rfbBool down, rfbKeySym keysym,
 	}
 	found = 0;
 
+	if (XkbGetState(dpy,
+	    use_multipointer ? cd->kbd_id : XkbUseCoreKbd, &kbstate)
+	    != Success) {
+		X_UNLOCK;
+		return;
+	}
+	got_kbstate = 1;
+
 	/*
 	 * loop over all (keycode, group, level) triples looking for
 	 * matching keysyms.  Amazingly this isn't slow (but maybe if
@@ -1680,6 +1690,10 @@ static void xkb_tweak_keyboard(rfbBool down, rfbKeySym keysym,
 	 */
 	for (kc = kc_min; kc <= kc_max; kc++) {
 	    for (grp = 0; grp < grp_max+1; grp++) {
+		/* A key from another layout can produce a different character here. */
+		if (grp != kbstate.group) {
+			continue;
+		}
 		for (lvl = 0; lvl < lvl_max+1; lvl++) {
 			if (keysym != xkbkeysyms[kc][grp][lvl]) {
 				continue;
